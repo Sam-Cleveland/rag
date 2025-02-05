@@ -1,0 +1,464 @@
+Explaining RAGs to a Junior Developer
+
+
+
+---
+teach RAGs to me as a junior experience software developer. Don't teach the whole concept to me at once but explain bit by bit and let me ask questions to clarify as we go
+
+
+I'll help you understand RAGs (Retrieval-Augmented Generation) step by step, starting with the basics. Let's begin with a simple concept:
+
+Think about how you currently build an AI application. You might use a large language model (LLM) like GPT or Claude to generate responses. However, these models only know what they were trained on - they can't access new or specific information that you might need for your application.
+
+This is where the first key concept of RAGs comes in: Retrieval. RAGs allow you to enhance your AI application by retrieving relevant information from your own data sources before generating a response.
+
+Does this initial concept make sense to you? What questions do you have about this first piece before we move on to how retrieval actually works?
+
+ ---
+this makes sense for the most part. to clarify, it's like a request is sent to the LLM and then the LLM makes a request to some data base and uses the resulting information in its response?
+
+
+Not exactly - let me clarify the flow. In RAG, you (the developer) handle the retrieval step before the LLM gets involved. Here's the typical flow:
+
+User sends a question/request
+Your application first searches your database/documents for relevant information
+You take that retrieved information and include it along with the user's question when you make the request to the LLM
+So the LLM itself doesn't make any database queries. Instead, you're essentially saying to the LLM: "Here's the user's question, AND here's some relevant context I found in my database - please use this information to generate your response."
+
+This is important because LLMs typically can't directly access external data sources - they can only work with the information provided in the prompt.
+
+Would you like me to give an example of what this might look like in practice? Or do you have any other questions about this workflow?
+
+ ---
+let's continue
+
+
+Great! Let's talk about how the retrieval part actually works. The key concept here is converting your data into something that's easily searchable. This involves two main steps:
+
+Embedding: First, you convert your text documents/data into vectors (essentially long lists of numbers) that represent their meaning. This is done using special embedding models (like OpenAI's text-embedding-ada-002 or other embedding models).
+Vector Storage: These vectors are stored in a vector database (like Pinecone, Weaviate, or other vector stores) that's optimized for finding similar vectors quickly.
+When a user asks a question, you convert their question into a vector using the same embedding process, then find the most similar vectors in your database. This similarity search helps find the most relevant information to their question.
+
+Does this part about embeddings and vector storage make sense? I know it might sound a bit abstract, so feel free to ask for clarification on any part of it.
+
+ ---
+are these vectors related to tokens commonly talked about with LLMs?
+
+
+Tokens and vectors are related but different concepts - let me explain:
+
+Tokens are how LLMs break down text into smaller pieces for processing. For example, the word "hamburger" might be broken into tokens like "ham" "bur" "ger". Tokens are about splitting text into processable chunks.
+
+Vectors (in the context of embeddings) are mathematical representations of meaning. When text is converted to a vector, it becomes a long list of numbers (like [0.2, -0.5, 0.7, ...]) where similar meanings have similar numbers. For example:
+
+"I love dogs" might become [0.2, 0.5, 0.3]
+"I like puppies" might become [0.19, 0.48, 0.28]
+"Mathematics is hard" might become [-0.4, -0.2, 0.1]
+Notice how the first two vectors have similar numbers because their meanings are similar, while the third vector is very different because it's about a completely different topic.
+
+The main difference is:
+
+Tokens are about breaking text down into pieces
+Vectors are about capturing meaning in a way computers can measure similarity
+Would you like me to explain more about how this vector similarity works, or should we move on to the next part of RAGs?
+
+ ---
+I have a related question. If you have a standard database that you would like to use with a rag, must you first convert the entire database into vectors before development or is this done at run time?
+
+
+Great question! You typically want to convert your database content into vectors ahead of time, not at runtime. Here's why:
+
+Performance: Converting text to vectors (embedding) is computationally expensive. Doing it at runtime for your entire database would make your application very slow.
+Cost: If you're using embedding APIs (like OpenAI's), each conversion costs money. You don't want to repeatedly embed the same content.
+The typical workflow is:
+
+Set up a one-time process to convert your existing database content into vectors
+Store these vectors in a vector database
+Set up a process to embed new content as it's added to your database
+At runtime, you only need to:
+
+Convert the user's question into a vector
+Use that vector to search your pre-computed vector database
+Think of it like building an index for a regular database - you do the heavy lifting upfront to make searches faster later.
+
+Would you like to see what this indexing process might look like in code? Or shall we move on to how you actually use these vectors during runtime?
+
+ ---
+let's move on
+
+
+Now let's talk about the "Augmented Generation" part of RAG - this is where we actually use the retrieved information.
+
+When generating a response, you combine three key elements:
+
+The user's question
+The relevant information you retrieved from your vector database
+Instructions for the LLM about how to use this information
+Here's a simplified example of what a prompt to the LLM might look like:
+
+
+Copy
+Context: {retrieved_information}
+User Question: "What are our company's return policies?"
+Instructions: Using only the information provided in the context above, answer the user's question. If the context doesn't contain enough information to fully answer the question, say so.
+This approach has several benefits:
+
+The LLM can provide more accurate, up-to-date answers based on your specific data
+You can control what information sources the LLM uses
+The LLM can admit when it doesn't have enough information rather than making things up
+Would you like me to explain more about prompt engineering for RAGs, or would you prefer to learn about how to handle cases where the retrieved information isn't quite what you need?
+
+ ---
+does the embedding model used to convert the database into vectors have to be "compatible" with the LLM worked? how does the LLM understand these vectors
+
+
+Ah, let me clarify something important - there's a misunderstanding here. The LLM never actually sees or works with the vectors!
+
+Here's how it works:
+
+Your database content is converted to vectors for searching/retrieval
+When you find relevant content using vector similarity, you send the original text (not the vectors) to the LLM
+So for example:
+
+User asks: "What's our refund policy?"
+You convert their question to a vector [0.2, 0.5, 0.3]
+Your vector database finds similar vectors and returns the corresponding original text: "Our refund policy allows returns within 30 days..."
+You send that original text to the LLM along with the user's question
+The vectors are only used for finding relevant information - they're like a sophisticated search index. The LLM always works with plain text.
+
+This means you can use any embedding model with any LLM. The only requirement is that you use the same embedding model for both:
+
+Converting your database content to vectors
+Converting user questions to vectors
+Does this help clarify the relationship between the vectors and the LLM?
+
+ ---
+yes okay. Side question, does the embedding model use ML and which ML method? Additionally, does the vector database store elements that have the vector and the text? i.e. when the "similar" vector is queried in the database the text can be accessed from that element correct?
+
+
+Yes to your second question! The vector database typically stores both the vector and the original text (or a reference to it) as a pair. When you query for similar vectors, you get back the associated text. Some vector databases call these pairs "documents" or "points".
+
+As for embedding models - yes, they use machine learning, specifically deep learning methods. Most modern embedding models are based on transformer neural networks (the same architecture family as LLMs, but typically smaller). They're trained to convert text into vectors in such a way that:
+
+Similar meanings end up close to each other in the vector space
+Different meanings end up far apart
+The training process usually involves showing the model pairs of similar texts and teaching it to generate similar vectors for them. This is often done through techniques like:
+
+Contrastive learning (showing similar and different pairs)
+Next sentence prediction
+Masked language modeling
+Would you like to dive deeper into any of these aspects? We could look at either:
+
+How vector databases organize these vector-text pairs for efficient similarity search
+More about how embedding models are trained
+ ---
+let's go back and continue learning about RAGs where we left off. what happens after the retrieval stage?
+
+
+After retrieval, we move into the "Generation" phase, where we craft a response using all the pieces we've gathered. Let me break this down:
+
+First, you need to construct a good prompt structure. This typically includes:
+
+The system prompt (instructions for the LLM about its role and how to use the retrieved information)
+The retrieved context
+The user's question
+For example, if you were building a customer service bot, it might look like this:
+
+python
+
+Copy
+prompt = f"""
+You are a customer service representative. Use the following information from our company database to answer the user's question. Only use the provided information and do not make assumptions.
+
+Retrieved Information:
+{retrieved_context}
+
+User Question: {user_question}
+"""
+The LLM then generates a response based on:
+
+The retrieved information (which we found through vector similarity)
+The specific instructions about how to use that information
+The user's actual question
+One important aspect here is handling cases where the retrieved information might be:
+
+Incomplete
+Not quite relevant
+Contradictory
+Would you like me to explain how to handle these edge cases, or would you prefer to learn about different prompt strategies for RAGs?
+
+ ---
+can we talk in more detail about how this prompt is structured first?
+
+
+Let's break down the prompt structure in more detail. When building a RAG prompt, there are typically three key sections that serve different purposes:
+
+System Instructions This part tells the LLM how to behave and sets rules for using the retrieved information. For example:
+python
+
+Copy
+system_prompt = """
+Role: You are a customer service representative for our electronics company.
+Rules:
+- Only use information provided in the context below
+- If you're not sure about something, say so
+- Format prices with dollar signs
+- Include relevant product model numbers when they appear in the context
+"""
+Retrieved Context This is where you insert the information found from your vector database. You want to make it clear to the LLM which part is the retrieved information:
+python
+
+Copy
+context_section = f"""
+Relevant Information:
+---
+{retrieved_context}
+---
+"""
+User Query Section Finally, you include the user's actual question:
+python
+
+Copy
+query_section = f"User Question: {user_question}"
+Putting it all together:
+
+python
+
+Copy
+final_prompt = f"""
+{system_prompt}
+
+{context_section}
+
+{query_section}
+"""
+This structure helps the LLM understand:
+
+What role it's playing
+Which information it's allowed to use
+What question it needs to answer
+Would you like to see how this prompt structure might change for different types of applications? Or shall we di---uss how to fine-tune these instructions for better results?
+
+ ---
+can you give me an example full prompt that might get sent to an LLM after a retrieval?
+
+
+Here's a realistic example of a complete prompt that might be sent to an LLM in a RAG system for a tech support application:
+
+python
+
+Copy
+final_prompt = """
+You are a technical support specialist for MacroTech Printers. Use only the information provided in the context below to help users with their printer issues. If the information provided doesn't fully address the user's question, acknowledge what you don't know.
+
+Relevant Information:
+---
+Model: PrintMax 2000
+Error Code E-231: Paper jam detected in rear feeder. To resolve:
+1. Power off printer
+2. Open rear access panel (blue latch)
+3. Remove any visible paper carefully
+4. Check for torn pieces
+5. Close panel
+6. Power on printer
+Note: If error persists after clearing jam, check for debris in paper path.
+
+Common causes of E-231:
+- Paper weight exceeds 32lb
+- Multiple sheets fed simultaneously
+- Debris in paper path
+- Worn feed rollers (if persistent, contact support for roller replacement)
+Last updated: Jan 2024
+---
+
+User Question: My PrintMax 2000 is showing error E-231. I've tried turning it off and on but it's not helping. What should I do?
+"""
+In this example:
+
+The system instructions clearly define the role and rules
+The retrieved context includes specific technical information about the error code
+The user's question is presented last
+When the LLM receives this, it can provide a specific solution based on the retrieved documentation.
+
+Would you like to see what a typical response to this prompt might look like? Or would you prefer to see example prompts for different types of applications?
+
+ ---
+how much retrieved context data is typically sent and how is it delimited so thath the LLM can distinct
+
+
+There are a few important aspects to how retrieved context is handled:
+
+Amount of Context Typically you'll retrieve the top-k most relevant chunks of information (often 3-5 chunks), with each chunk being around 512-1000 tokens. The exact amount depends on:
+The LLM's context window size
+How much space you need for the system prompt and user question
+The complexity of your task
+Delimiting Methods Common ways to separate chunks of retrieved context:
+python
+
+Copy
+# Using markdown-style separators
+context = """
+Retrieved Information:
+---
+[Chunk 1 content]
+---
+[Chunk 2 content]
+---
+[Chunk 3 content]
+---
+"""
+
+# Using numbered sections
+context = """
+Retrieved Information:
+[1] First relevant passage:
+    [Content...]
+
+[2] Second relevant passage:
+    [Content...]
+"""
+
+# Using semantic labels
+context = """
+Retrieved Information:
+POLICY DOCUMENT:
+[policy content]
+
+TECHNICAL MANUAL:
+[manual content]
+
+USER GUIDE:
+[guide content]
+"""
+Metadata Often you'll want to include source information with each chunk:
+python
+
+Copy
+context = """
+Retrieved Information:
+[Source: Company Policy Manual, Last Updated: 2024-01-15]
+First chunk content...
+
+[Source: Technical Documentation v2.3]
+Second chunk content...
+"""
+Would you like to see how you might implement the logic for selecting and formatting these context chunks? Or shall we di---uss strategies for handling cases where you have too much relevant context?
+
+ ---
+let's go back to talking about cases where the retrieved information is Incomplete, Not quite relevant, or contradictory
+
+
+Let's look at how to handle these three challenging cases in RAGs:
+
+Incomplete Information The best practice is to instruct your LLM to be transparent about gaps. Here's how:
+python
+
+Copy
+system_prompt = """
+When the retrieved information is incomplete:
+1. Answer what you can based on available information
+2. Explicitly state what parts of the question you cannot answer
+3. Never fill in gaps with assumptions
+"""
+Not Quite Relevant Information There are two main strategies here:
+Use a relevance threshold: Only include retrieved content if its similarity ---ore exceeds a certain threshold
+Multi-step retrieval: First retrieve based on the initial query, then use the LLM to reformulate the query and retrieve again
+Contradictory Information This is often handled by:
+Including timestamp metadata with each piece of information and instructing the LLM to prefer newer information
+Explicitly asking the LLM to identify contradictions and explain them
+Here's an example prompt that handles all these cases:
+
+python
+
+Copy
+prompt = """
+You are a customer service agent. Follow these rules when using the retrieved information:
+
+1. If information is incomplete:
+   - State clearly what you know and don't know
+   - Don't make assumptions
+
+2. If information seems irrelevant:
+   - Explain why it might not fully address the question
+   - Ask for clarification if needed
+
+3. If you find contradictions:
+   - Use the most recent information (check timestamps)
+   - Point out the contradiction
+   - Explain which source you're using and why
+
+Retrieved Information:
+{context}
+
+User Question: {question}
+"""
+Would you like to see some specific examples of how these ---enarios play out in practice?
+
+ ---
+lets go back and continue learning
+
+
+Let's move on to an important aspect of RAGs: evaluation and improvement. This is crucial for making sure your RAG system is actually providing good answers.
+
+There are several key metrics and aspects to evaluate:
+
+Retrieval Quality
+Are we getting back the most relevant documents?
+Are we retrieving enough context? Too much?
+Are we missing important information?
+Response Accuracy
+Does the LLM use the retrieved information correctly?
+Are the answers factual and consistent with your data?
+Is the LLM making assumptions beyond the retrieved context?
+Latency and Performance
+How long does retrieval take?
+Is the system responsive enough for your use case?
+Are there bottlenecks in the process?
+Would you like me to explain more about how to measure and improve any of these aspects? Or would you prefer to learn about different ways to implement these evaluation methods in your code?
+
+ ---
+lets talk about measuring and improving
+
+
+Let's break down how to measure and improve each aspect of your RAG system:
+
+1. Measuring Retrieval Quality
+The main metrics are:
+
+Precision: Are the retrieved documents actually relevant?
+Recall: Are we missing important relevant documents?
+MRR (Mean Reciprocal Rank): Is the most relevant document coming up first?
+To measure these, you'll need a test set with:
+
+Sample questions
+Known relevant documents for each question
+python
+
+Copy
+def evaluate_retrieval(test_cases):
+    results = []
+    for question, expected_docs in test_cases:
+        retrieved_docs = your_retrieval_function(question)
+        precision = calculate_precision(retrieved_docs, expected_docs)
+        recall = calculate_recall(retrieved_docs, expected_docs)
+        results.append({"precision": precision, "recall": recall})
+2. Measuring Response Accuracy
+You can evaluate this through:
+
+Manual review of responses
+Automated comparison with expected answers
+Checking if responses only use information from retrieved context
+Would you like me to dive deeper into:
+
+How to implement these evaluation metrics
+Specific techniques for improving performance once you've measured it
+How to create good test sets for evaluation
+Which would be most helpful?
+
+ ---
+can we talk about a specific use case I would like to use RAGs in and adapt our knowledge to this use case?
+
+
+Of course! I'd be happy to help you apply RAG concepts to your specific use case. Could you tell me about what you're trying to build or what problem you're trying to solve?
+
+This would help me provide more targeted guidance and practical examples that are directly relevant to your needs.
